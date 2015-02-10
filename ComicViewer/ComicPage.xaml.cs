@@ -24,51 +24,42 @@ using Windows.UI.Xaml.Media.Animation;
 using WinRTXamlToolkit.Extensions;
 using Windows.Graphics.Display;
 using Windows.UI.ViewManagement;
+using SharpCompress.Common;
 
-// The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=234238
 
 namespace ComicViewer
 {
     public sealed partial class ComicPage : LayoutAwarePage
     {
         private FolderViewModel viewModel;
-        private Boolean pageChange = false;
+        private Size dimensions;
+        private int pagesCount;
+        private float zoomFactor = 1.0f;
 
         public ComicPage()
         {
             this.InitializeComponent();
             viewModel = new FolderViewModel();
-            this.ManipulationDelta += ZoomManipulationDelta;
             flipViewer.SelectionChanged += FlipViewSelectionChanged;
             Back.Click += Back_Click;
             Go.Click += Go_Click;
             Window.Current.SizeChanged += WindowSizeChanged;
             DataContext = viewModel;
+            dimensions = new Size(Window.Current.Bounds.Width, Window.Current.Bounds.Height);
         }     
 
         private void WindowSizeChanged(object sender, Windows.UI.Core.WindowSizeChangedEventArgs e)
         {
-            // Obtain view state by explicitly querying for it
-            ApplicationViewState myViewState = ApplicationView.Value;
-            int count = flipViewer.Items.Count;
-            for(int i = 0; i < count; i++)
-            {
-                var flipViewItem = flipViewer.ItemContainerGenerator.ContainerFromIndex((i));
-                var scrollViewItem = FindFirstElementInVisualTree<ScrollViewer>(flipViewItem);
-                if (scrollViewItem is ScrollViewer)
-                {
-                    ScrollViewer scroll = (ScrollViewer)scrollViewItem;
-                    scroll.Height = e.Size.Height;
-                    scroll.Width = e.Size.Width;
-                    scroll.ZoomToFactor(0.75f);
-                }
-            }
+            dimensions = e.Size;
+            MarkedUp.AnalyticClient.SessionEvent("Window size changed");
         }
         private void ProggressBarVisible(bool visible)
         {
             ProgressRingLoad.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
             ProgressRingLoad.IsActive = visible;
         }
+
+
 
         protected override async void LoadState(Object navigationParameter, Dictionary<String, Object> pageState)
         {
@@ -81,12 +72,14 @@ namespace ComicViewer
                 ProggressBarVisible(true);
                 FileActivatedEventArgs args = (FileActivatedEventArgs)navigationParameter;
 
+                MarkedUp.AnalyticClient.SessionEvent("Comic opened by file");
                 StorageFile sourceFile = null;
                 StorageFolder destFolder = null;
                 try
                 {
                     sourceFile = (StorageFile)args.Files.ToList().ElementAt(0);
-                    destFolder = await Windows.Storage.ApplicationData.Current.LocalFolder.CreateFolderAsync(sourceFile.Name, CreationCollisionOption.ReplaceExisting);
+                    StorageFolder recentlyOpened = await Windows.Storage.ApplicationData.Current.LocalFolder.GetFolderAsync("Recently Opened");
+                    destFolder = await recentlyOpened.CreateFolderAsync(sourceFile.Name, CreationCollisionOption.ReplaceExisting);
 
                     if (sourceFile.FileType.Equals("cbz") || sourceFile.FileType.Equals(".cbz"))
                         await FolderZip.UnZipFile(sourceFile, destFolder);
@@ -100,11 +93,21 @@ namespace ComicViewer
                     ShowWarningAndClose("Cannont access files outside of Libraries", "You can copy it to documents if you want to open it");
                 }
             }
-            else if (navigationParameter is String)
+            else if (navigationParameter is StorageFolder)
             {
                 ProggressBarVisible(true);
-                String args = (String)navigationParameter;
-                StorageFolder destFolder = await Windows.Storage.ApplicationData.Current.LocalFolder.GetFolderAsync(args);
+                StorageFolder destFolder = (StorageFolder)navigationParameter;
+                StorageFolder recentlyOpened = await Windows.Storage.ApplicationData.Current.LocalFolder.GetFolderAsync("Recently Opened");
+                StorageFolder testFolder = (StorageFolder)await recentlyOpened.TryGetItemAsync(destFolder.Name);
+                if (testFolder == null)
+                {
+                    testFolder = await recentlyOpened.CreateFolderAsync(destFolder.Name);
+                    IReadOnlyList<StorageFile> files = await destFolder.GetFilesAsync();
+                    foreach(StorageFile file in files)
+                    {
+                        await file.CopyAsync(testFolder);
+                    }
+                }
                 await viewModel.Initialize(destFolder);
                 ProggressBarVisible(false);
             }
@@ -112,7 +115,8 @@ namespace ComicViewer
             {
                 Windows.Storage.Pickers.FileOpenPicker filePicker = new Windows.Storage.Pickers.FileOpenPicker();
                 filePicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary; 
-                filePicker.FileTypeFilter.Add("*");
+                filePicker.FileTypeFilter.Add(".cbz");
+                filePicker.FileTypeFilter.Add(".cbr");
                 filePicker.CommitButtonText = "Open";
 
                 StorageFile sourceFile = null;
@@ -127,38 +131,37 @@ namespace ComicViewer
                     else
                     {
                         ProggressBarVisible(true);
-                        destFolder = await Windows.Storage.ApplicationData.Current.LocalFolder.CreateFolderAsync(sourceFile.Name, CreationCollisionOption.ReplaceExisting);
+                        StorageFolder recentlyOpened = await Windows.Storage.ApplicationData.Current.LocalFolder.GetFolderAsync("Recently Opened");
+                        destFolder = await recentlyOpened.CreateFolderAsync(sourceFile.Name, CreationCollisionOption.ReplaceExisting);
 
-                        if (sourceFile.FileType.Equals("cbz") || sourceFile.FileType.Equals(".cbz"))
-                            await FolderZip.UnZipFile(sourceFile, destFolder);
-                        else if (sourceFile.FileType.Equals("cbr") || sourceFile.FileType.Equals(".cbr"))
-                            await FolderZip.UnRarFile(sourceFile, destFolder);
+                        try
+                        {
+                            if (sourceFile.FileType.Equals("cbz") || sourceFile.FileType.Equals(".cbz"))
+                                await FolderZip.UnZipFile(sourceFile, destFolder);
+                            else if (sourceFile.FileType.Equals("cbr") || sourceFile.FileType.Equals(".cbr"))
+                                await FolderZip.UnRarFile(sourceFile, destFolder);
+                        }
+                        catch (InvalidFormatException exception)
+                        {
+                            ShowWarningAndClose("Error opening file:" + sourceFile.Name, "Please restart the app and try again");
+                        }
                         await viewModel.Initialize(destFolder);
                         ProggressBarVisible(false);
                     }
                 }
                 catch (UnauthorizedAccessException e)
                 {
-                    ShowWarningAndClose("Cannont access files outside of Libraries", "You can copy it to pictures if you want to open it");
+                    //ShowWarningAndClose("Cannont access files outside of Libraries", "You can copy it to pictures if you want to open it");
                 }
                 catch (Exception e)
                 {
                     ShowWarningAndClose("An error has occured that has not been handled", "Error info: " + e.Message);
                 }
             }
-            /*
-            if (viewModel!=null && !viewModel.ContainsPictures)
-            {
-                try
-                {
-                    await ShowWarningAndClose("Could not find any images in file.", "CBZ/CBR has no pictures");
-                }
-                catch (Exception e)
-                {
 
-                }
-            }
-            */
+
+            pagesCount = viewModel.Pictures.Count;
+            pageNumberLabel.Text = "(1/" + pagesCount + ")";
         }
 
         private async Task ShowWarningAndClose(String error1, String error2)
@@ -185,12 +188,6 @@ namespace ComicViewer
         protected override void SaveState(Dictionary<String, Object> pageState)
         {
             pageState["DataContext"] = viewModel;
-        }
-
-        private void ZoomManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
-        {
-            if (sender is ScrollViewer)
-                ((ScrollViewer)flipViewer.ItemContainerGenerator.ContainerFromItem(sender)).ZoomToFactor(e.Delta.Scale);
         }
         private T FindFirstElementInVisualTree<T>(DependencyObject parentElement) where T : DependencyObject
         {
@@ -238,12 +235,11 @@ namespace ComicViewer
             }
             catch (System.FormatException)
             {
-                ShowWarning("Please enter a valid number", "Number entered was an invalid format");
+                ShowWarning("Please enter a valid number", "Text entered not a number!");
             }
             int count = flipViewer.Items.Count;
             if (pageNumber <= count)
             {
-                pageChange = true;
                 flipViewer.SelectedIndex = pageNumber;
             }
             else
@@ -251,47 +247,34 @@ namespace ComicViewer
                 ShowWarning("Page number is out of range", "Number of pages is " + flipViewer.Items.Count);
             }
         }
+        private void resetScroll(ScrollViewer scroll)
+        {
+            var pictureModel = FindFirstElementInVisualTree<Image>(scroll);
+            if (pictureModel is Image)
+            {
+                scroll.ChangeView(0, 0, zoomFactor, true);
+            }
+        }
         private void FlipViewSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (sender is FlipView && !pageChange)
+            if (sender is FlipView && flipViewer.SelectedIndex!=0)
             {
-                FlipView item = (FlipView)sender;
-                var flipViewItem = ((FlipView)sender).ItemContainerGenerator.ContainerFromIndex(((FlipView)sender).SelectedIndex);
+                var flipViewItem = flipViewer.ContainerFromIndex(flipViewer.SelectedIndex);
                 var scrollViewItem = FindFirstElementInVisualTree<ScrollViewer>(flipViewItem);
+
                 if (scrollViewItem is ScrollViewer)
                 {
-                    ScrollViewer scroll = (ScrollViewer)scrollViewItem;
-                    scroll.ScrollToHorizontalOffset(0);
-                    scroll.ScrollToVerticalOffset(0);
-                    scroll.ZoomToFactor(1.0f);
-                    /*
-                     * 
-                     * FIX THIS LATER
-                     * 
-                     * FOR REAL, FIX IT
-                     * 
-                     * CAMERON, YOU HAVEN'T FIXED IT YET. GET YOUR SHIT TOGETHER.
-                     * 
-                    Storyboard storyboard = new Storyboard();
-
-                    Duration duration = new Duration(TimeSpan.FromSeconds(2));
-                    DoubleAnimation verticalOffsetAnimation = new DoubleAnimation { To = 0, Duration = duration };
-
-
-                    Storyboard.SetTarget(verticalOffsetAnimation, scroll);
-                    Storyboard.SetTargetName(verticalOffsetAnimation, scroll.Name);
-                    String str = ScrollViewer.VerticalOffsetProperty.ToString();
-                    //PropertyPath property = new PropertyPath(ScrollViewer.VerticalOffsetProperty);
-                    //Storyboard.SetTargetProperty(verticalOffsetAnimation, property);
-
-                    storyboard.Children.Add(verticalOffsetAnimation);
-
-                    storyboard.Begin();
-                     * */
+                    scrollViewItem.Width = dimensions.Width;
+                    scrollViewItem.Height = dimensions.Height;
+                    scrollViewItem.ChangeView(0, 0, zoomFactor, true);
                 }
             }
-            pageChange = false;
-            pageNumberLabel.Text = "(" + (flipViewer.SelectedIndex + 1) + "/" + flipViewer.Items.Count + ")";
+            pageNumberLabel.Text = "(" + (flipViewer.SelectedIndex + 1) + "/" + pagesCount + ")";
+        }
+
+        private void ScrollViewer_ViewChanged(object sender, ScrollViewerViewChangedEventArgs e)
+        {
+            zoomFactor = ((ScrollViewer)sender).ZoomFactor;
         }
     }
 }

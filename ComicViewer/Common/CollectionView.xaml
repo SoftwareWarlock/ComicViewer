@@ -1,0 +1,33 @@
+﻿<UserControl
+    x:Class="ComicViewer.Common.CollectionView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    DataContext="{Binding DefaultViewModel, RelativeSource={RelativeSource Self}}"
+    xmlns:local="using:ComicViewer.Common"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    d:DesignHeight="250"
+    d:DesignWidth="400">
+    
+    <Grid DataContext="{Binding Tile}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Margin="20,0,0,10" x:Name="HeaderTitle" Text="{Binding Title}" Style="{StaticResource GroupHeaderTextStyle}" Grid.Column="1" 
+                        VerticalAlignment="Center" IsHitTestVisible="false" TextWrapping="NoWrap" />
+        <GridView Grid.Row="1"
+            x:Name="collectionComicsGridView"
+                  VerticalAlignment="Top"
+            ItemsSource="{Binding Tiles}"
+            Margin="30,0,0,0"
+            AutomationProperties.AutomationId="ItemGridView"
+            AutomationProperties.Name="Items In Group"
+            ItemTemplate="{StaticResource Standard250x250ItemTemplate}"
+            SelectionMode="None"
+            IsSwipeEnabled="false"
+            IsItemClickEnabled="True"
+            ItemClick="ItemView_ItemClick"/>
+    </Grid>
+</UserControl>

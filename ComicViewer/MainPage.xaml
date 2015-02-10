@@ -1,0 +1,99 @@
+﻿<Page
+    x:Name="pageRoot"
+    x:Class="ComicViewer.MainPage"
+    DataContext="{Binding DefaultViewModel, RelativeSource={RelativeSource Self}}"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ComicViewer"
+    xmlns:common="using:ComicViewer.Common"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+    <Grid>
+        <Hub>
+            <Hub.Header>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Margin="20,0,0,10" x:Name="pageTitle" Text="Simple Comic Viewer" Style="{StaticResource HeaderTextBlockStyle}" Grid.Column="1" 
+                        VerticalAlignment="Top" IsHitTestVisible="false" TextWrapping="NoWrap" />
+                </Grid>
+            </Hub.Header>
+
+            <HubSection Header="Open Comics" MinWidth="600">
+                <DataTemplate>
+                    <GridView
+                        x:Name="buttonGridView"
+                        ItemsSource="{Binding ButtonTiles}"
+                        Margin="-9,-14,0,0"
+                        AutomationProperties.AutomationId="ItemGridView"
+                        AutomationProperties.Name="Items In Group"
+                        ItemTemplate="{StaticResource Standard250x250ItemTemplate}"
+                        SelectionMode="None"
+                        IsSwipeEnabled="false"
+                        IsItemClickEnabled="True"
+                        ItemClick="buttonGridView_ItemClick"/>
+                </DataTemplate>
+            </HubSection>
+
+            <HubSection Header="Recently Opened" MinWidth="400" Background="#222222">
+                <DataTemplate>
+                    <GridView
+                        x:Name="itemGridView"
+                        ItemsSource="{Binding ComicTiles}"
+                        Margin="-9,-14,0,0"
+                        AutomationProperties.AutomationId="ItemGridView"
+                        AutomationProperties.Name="Items In Group"
+                        ItemTemplate="{StaticResource Standard250x250ItemTemplate}"
+                        SelectionMode="None"
+                        IsSwipeEnabled="false"
+                        IsItemClickEnabled="True"
+                        ItemClick="ItemView_ItemClick"/>
+                </DataTemplate>
+            </HubSection>
+
+            <HubSection Header="Collections" MinWidth="400" Background="#444444">
+                <DataTemplate>
+                    <GridView
+                        VerticalAlignment="Top"
+                        x:Name="collectionsGridView"
+                        ItemsSource="{Binding CollectionViews}"
+                        Margin="0,0,0,0"
+                        AutomationProperties.AutomationId="ItemGridView"
+                        AutomationProperties.Name="Items In Group"
+                        SelectionMode="None"
+                        IsSwipeEnabled="false"
+                        IsItemClickEnabled="False"
+                        >
+                        <GridView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </GridView.ItemsPanel>
+                        <GridView.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.Panel>
+                                    <ItemsPanelTemplate>
+                                        <VariableSizedWrapGrid Orientation="Vertical" Margin="0,0,0,0"/>
+                                    </ItemsPanelTemplate>
+                                </GroupStyle.Panel>
+                            </GroupStyle>
+                        </GridView.GroupStyle>
+                    </GridView>
+                </DataTemplate>
+            </HubSection>
+        </Hub>
+
+        <TextBlock Visibility="Collapsed" Name="LoadingText" Style="{StaticResource GroupHeaderTextStyle}" 
+                   Margin="10,80,10,10" HorizontalAlignment="Left" VerticalAlignment="Center">
+            <Run Text="Loading, this may take a while"/>
+            <LineBreak />
+            <Run Text="Current file: " />
+            <Run Text="{Binding LoadingFile}"/>
+        </TextBlock>
+        <ProgressBar Visibility="Collapsed" x:Name="LoadingBar" IsIndeterminate="True"/>
+    </Grid>
+
+</Page>

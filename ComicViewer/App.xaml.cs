@@ -1,5 +1,4 @@
-﻿using ComicViewer.Data;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -33,6 +32,7 @@ namespace ComicViewer
         {
             this.InitializeComponent();
             this.Suspending += OnSuspending;
+            this.UnhandledException += (s, e) => MarkedUp.AnalyticClient.LogLastChanceException(e);
         }
 
         /// <summary>
@@ -43,6 +43,8 @@ namespace ComicViewer
         /// <param name="args">Details about the launch request and process.</param>
         protected async override void OnLaunched(LaunchActivatedEventArgs args)
         {
+            MarkedUp.AnalyticClient.Initialize("aec859d2-b98b-4284-b194-c97e82e96cf6");
+
             Frame rootFrame = Window.Current.Content as Frame;
 
             // Do not repeat app initialization when the Window already has content,
@@ -58,6 +60,7 @@ namespace ComicViewer
                 }
 
                 // Place the frame in the current Window
+                MarkedUp.AnalyticClient.RegisterNavigationFrame(rootFrame);
                 Window.Current.Content = rootFrame;
             }
 
@@ -66,7 +69,7 @@ namespace ComicViewer
                 // When the navigation stack isn't restored navigate to the first page,
                 // configuring the new page by passing required information as a navigation
                 // parameter
-                if (!rootFrame.Navigate(typeof(GroupedItemsPage), args))
+                if (!rootFrame.Navigate(typeof(MainPage), args))
                 {
                     throw new Exception("Failed to create initial page");
                 }

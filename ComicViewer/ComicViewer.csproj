@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -15,6 +15,10 @@
     <PackageCertificateKeyFile>ComicViewer_StoreKey.pfx</PackageCertificateKeyFile>
     <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
     <PackageCertificateThumbprint>B1D703ABE79E83631792169D10E1B6DCB1756479</PackageCertificateThumbprint>
+    <TargetPlatformVersion>8.1</TargetPlatformVersion>
+    <MinimumVisualStudioVersion>12</MinimumVisualStudioVersion>
+    <TargetFrameworkVersion />
+    <AppxBundlePlatforms>neutral</AppxBundlePlatforms>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -108,20 +112,25 @@
     <Compile Include="Common\BindableBase.cs" />
     <Compile Include="Common\BooleanNegationConverter.cs" />
     <Compile Include="Common\BooleanToVisibilityConverter.cs" />
+    <Compile Include="Common\CollectionView.xaml.cs">
+      <DependentUpon>CollectionView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Common\LayoutAwarePage.cs" />
+    <Compile Include="Common\ObservableDictionary.cs" />
     <Compile Include="Common\RichTextColumns.cs" />
     <Compile Include="Common\SuspensionManager.cs" />
     <Compile Include="Common\VisualTreeHelperExtensions.cs" />
     <Compile Include="ComicPage.xaml.cs">
       <DependentUpon>ComicPage.xaml</DependentUpon>
     </Compile>
-    <Compile Include="DataModel\SampleDataSource.cs" />
-    <Compile Include="GroupedItemsPage.xaml.cs">
-      <DependentUpon>GroupedItemsPage.xaml</DependentUpon>
+    <Compile Include="MainPage.xaml.cs">
+      <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Model\CollectionTile.cs" />
     <Compile Include="Model\FolderViewModel.cs" />
     <Compile Include="Model\FolderZip.cs" />
     <Compile Include="Model\PictureModel.cs" />
+    <Compile Include="Model\ComicTile.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -130,6 +139,7 @@
     </AppxManifest>
     <None Include="ComicViewer_StoreKey.pfx" />
     <None Include="ComicViewer_TemporaryKey.pfx" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Assets\Logo.png" />
@@ -137,12 +147,15 @@
     <Content Include="Assets\SplashScreen.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\WideLogo.png" />
-    <Content Include="Common\ReadMe.txt" />
+    <Page Include="Common\CollectionView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Common\StandardStyles.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="GroupedItemsPage.xaml">
+    <Page Include="MainPage.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -159,13 +172,15 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="SharpCompress.WP7, Version=0.8.2.0, Culture=neutral, PublicKeyToken=beaf6f427e128133, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>.\SharpCompress.WP7.dll</HintPath>
+    <Reference Include="MarkedUp">
+      <HintPath>..\packages\MarkedUp.1.3.0\lib\NetCore45\MarkedUp.winmd</HintPath>
+    </Reference>
+    <Reference Include="SharpCompress">
+      <HintPath>.\SharpCompress.dll</HintPath>
     </Reference>
   </ItemGroup>
-  <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '11.0' ">
-    <VisualStudioVersion>11.0</VisualStudioVersion>
+  <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '12.0' ">
+    <VisualStudioVersion>12.0</VisualStudioVersion>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\Microsoft\WindowsXaml\v$(VisualStudioVersion)\Microsoft.Windows.UI.Xaml.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

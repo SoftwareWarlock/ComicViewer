@@ -30,81 +30,40 @@
     </Page.BottomAppBar>
 
     <Grid Background="Black">
-            <FlipView
+        <FlipView
                 Name="flipViewer"
                 Background="Black"
                 AutomationProperties.AutomationId="ItemsFlipView"
                 AutomationProperties.Name="Item Details"
                 ItemsSource="{Binding Pictures}">
             <FlipView.ItemContainerStyle>
-                    <Style TargetType="FlipViewItem">
-                        <Setter Property="Margin" Value="0,0,0,0"/>
-                    </Style>
-                </FlipView.ItemContainerStyle>
+                <Style TargetType="FlipViewItem">
+                    <Setter Property="Margin" Value="0,0,0,0"/>
+                </Style>
+            </FlipView.ItemContainerStyle>
 
-                <FlipView.ItemTemplate>
-                    <DataTemplate>
-
-                        <!--
-                            UserControl chosen as the templated item because it supports visual state management
-                            Loaded/unloaded events explicitly subscribe to view state updates from the page
-                        -->
-                        <UserControl Loaded="StartLayoutUpdates" Unloaded="StopLayoutUpdates">
-                            <ScrollViewer Name="scrollViewer" ZoomMode="Enabled" Background="Black"
+            <FlipView.ItemTemplate>
+                <DataTemplate>
+                    <ScrollViewer ZoomMode="Enabled" Background="Black"
                                           Width="{Binding ActualWidth, ElementName=flipViewer, Mode=TwoWay}"
                                           Height="{Binding ActualHeight, ElementName=flipViewer, Mode=TwoWay}"
                                           HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
                                           HorizontalScrollBarVisibility="Auto"
                                           VerticalScrollBarVisibility="Auto"
+                                          ViewChanged="ScrollViewer_ViewChanged"
                                           MinZoomFactor="0.1"
                                           MaxZoomFactor="2.5"
                                           Margin="0">
-                                <Image
-                                           Name="image"
-                                           Height="Auto"
-                                           Width="Auto"
-                                           Source="{Binding Image}">
-                                </Image>
-                            </ScrollViewer>
-
-                            <VisualStateManager.VisualStateGroups>
-
-                                <!-- Visual states reflect the application's view state inside the FlipView -->
-                                <VisualStateGroup x:Name="ApplicationViewStates">
-                                    <VisualState x:Name="FullScreenLandscape"/>
-                                    <VisualState x:Name="Filled"/>
-
-                                    <!-- Respect the narrower 100-pixel margin convention for portrait -->
-                                    <VisualState x:Name="FullScreenPortrait">
-                                        <Storyboard>
-                                        <ObjectAnimationUsingKeyFrames Storyboard.TargetName="scrollViewer" Storyboard.TargetProperty="Margin">
-                                                <DiscreteObjectKeyFrame KeyTime="0" Value="97,20,87,67"/>
-                                            </ObjectAnimationUsingKeyFrames>
-                                        <ObjectAnimationUsingKeyFrames Storyboard.TargetName="scrollViewer" Storyboard.TargetProperty="Width">
-                                            <DiscreteObjectKeyFrame KeyTime="0" Value="{Binding ActualWidth, ElementName=flipViewer, Mode=TwoWay}"/>
-                                            </ObjectAnimationUsingKeyFrames>
-                                        <ObjectAnimationUsingKeyFrames Storyboard.TargetName="scrollViewer" Storyboard.TargetProperty="Height">
-                                            <DiscreteObjectKeyFrame KeyTime="0" Value="{Binding ActualHeight, ElementName=flipViewer, Mode=TwoWay}"/>
-                                        </ObjectAnimationUsingKeyFrames>
-                                    </Storyboard>
-                                    </VisualState>
-
-                                    <!-- When snapped, the content is reformatted and scrolls vertically -->
-                                    <VisualState x:Name="Snapped">
-                                        <Storyboard>
-                                        <ObjectAnimationUsingKeyFrames Storyboard.TargetName="scrollViewer" Storyboard.TargetProperty="Margin">
-                                                <DiscreteObjectKeyFrame KeyTime="0" Value="17,20,17,67"/>
-                                            </ObjectAnimationUsingKeyFrames>
-                                        </Storyboard>
-                                    </VisualState>
-                                </VisualStateGroup>
-                            </VisualStateManager.VisualStateGroups>
-
-                        </UserControl>
-                    </DataTemplate>
-                </FlipView.ItemTemplate>
-            </FlipView>
-        <ProgressRing x:Name="ProgressRingLoad" Visibility="Collapsed"></ProgressRing>
+                        <Image
+                            Height="Auto"
+                            Width="Auto"
+                            Source="{Binding Image}">
+                        </Image>
+                    </ScrollViewer>
+                </DataTemplate>
+            </FlipView.ItemTemplate>
+        </FlipView>
+        <ProgressRing x:Name="ProgressRingLoad" Width="50" Height="50" Visibility="Collapsed"></ProgressRing>
     </Grid>
 </common:LayoutAwarePage>
