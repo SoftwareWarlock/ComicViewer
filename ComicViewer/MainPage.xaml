@@ -9,36 +9,57 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
+    
+    <Page.BottomAppBar>
+        <AppBar x:Name="BottomAppBar" IsSticky="True">
+            <Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <AppBarButton x:Name="DeleteAppBarButton" Label="Delete" Click="DeleteAppBarButton_Click">
+                        <AppBarButton.Icon>
+                            <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE107;"/>
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+
+                    <AppBarButton x:Name="ClearAppBarButton" Label="Clear Selection" Click="ClearAppBarButton_Click">
+                        <AppBarButton.Icon>
+                            <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE106;"/>
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                </StackPanel>
+            </Grid>
+        </AppBar>
+    </Page.BottomAppBar>
+    
     <Grid>
         <Hub>
             <Hub.Header>
                 <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Margin="20,0,0,10" x:Name="pageTitle" Text="Simple Comic Viewer" Style="{StaticResource HeaderTextBlockStyle}" Grid.Column="1" 
+                    <TextBlock Margin="20,0,0,10" x:Name="pageTitle" Text="Simple Comic Viewer" Style="{StaticResource HeaderTextBlockStyle}" 
                         VerticalAlignment="Top" IsHitTestVisible="false" TextWrapping="NoWrap" />
                 </Grid>
             </Hub.Header>
 
             <HubSection Header="Open Comics" MinWidth="600">
                 <DataTemplate>
-                    <GridView
-                        x:Name="buttonGridView"
-                        ItemsSource="{Binding ButtonTiles}"
-                        Margin="-9,-14,0,0"
-                        AutomationProperties.AutomationId="ItemGridView"
-                        AutomationProperties.Name="Items In Group"
-                        ItemTemplate="{StaticResource Standard250x250ItemTemplate}"
-                        SelectionMode="None"
-                        IsSwipeEnabled="false"
-                        IsItemClickEnabled="True"
-                        ItemClick="buttonGridView_ItemClick"/>
+                    <StackPanel>
+                        <Button x:Name="OpenComicButton" Padding="25,50" Background="Black" Click="OpenComicsButton_Click">
+                            <StackPanel>
+                                <TextBlock Text="&#xE160;" FontSize="30" FontFamily="{StaticResource SymbolThemeFontFamily}" HorizontalAlignment="Center" Margin="0,0,0,10" />
+                                <TextBlock Text="Open New Comic" />
+                            </StackPanel>
+                        </Button>
+
+                        <Button x:Name="OpenCollectionButton" Padding="13,50" Background="Black" Click="OpenCollectionButton_Click">
+                            <StackPanel>
+                                <TextBlock Text="&#xE1DA;" FontSize="30" FontFamily="{StaticResource SymbolThemeFontFamily}" HorizontalAlignment="Center" Margin="0,0,0,10" />
+                                <TextBlock Text="Open New Collection" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
                 </DataTemplate>
             </HubSection>
 
-            <HubSection Header="Recently Opened" MinWidth="400" Background="#222222">
+            <HubSection x:Name="RecentlyOpenedHubSection" Header="Recently Opened" MinWidth="400" Background="#222222">
                 <DataTemplate>
                     <GridView
                         x:Name="itemGridView"
@@ -47,14 +68,15 @@
                         AutomationProperties.AutomationId="ItemGridView"
                         AutomationProperties.Name="Items In Group"
                         ItemTemplate="{StaticResource Standard250x250ItemTemplate}"
-                        SelectionMode="None"
-                        IsSwipeEnabled="false"
+                        SelectionMode="Multiple"
+                        IsSwipeEnabled="True"
                         IsItemClickEnabled="True"
+                        SelectionChanged="collectionsGridView_SelectionChanged"
                         ItemClick="ItemView_ItemClick"/>
                 </DataTemplate>
             </HubSection>
 
-            <HubSection Header="Collections" MinWidth="400" Background="#444444">
+            <HubSection x:Name="CollectionsHubSection" Header="Collections" MinWidth="600" Background="#444444">
                 <DataTemplate>
                     <GridView
                         VerticalAlignment="Top"
@@ -63,9 +85,10 @@
                         Margin="0,0,0,0"
                         AutomationProperties.AutomationId="ItemGridView"
                         AutomationProperties.Name="Items In Group"
-                        SelectionMode="None"
-                        IsSwipeEnabled="false"
-                        IsItemClickEnabled="False"
+                        SelectionMode="Multiple"
+                        IsSwipeEnabled="True"
+                        IsItemClickEnabled="True"
+                        SelectionChanged="collectionsGridView_SelectionChanged"
                         >
                         <GridView.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -86,14 +109,25 @@
             </HubSection>
         </Hub>
 
-        <TextBlock Visibility="Collapsed" Name="LoadingText" Style="{StaticResource GroupHeaderTextStyle}" 
+        <Grid x:Name="LoadingGrid" Background="#77000000" Visibility="Collapsed">
+            <TextBlock Name="LoadingText" Style="{StaticResource GroupHeaderTextStyle}" 
                    Margin="10,80,10,10" HorizontalAlignment="Left" VerticalAlignment="Center">
             <Run Text="Loading, this may take a while"/>
             <LineBreak />
             <Run Text="Current file: " />
             <Run Text="{Binding LoadingFile}"/>
-        </TextBlock>
-        <ProgressBar Visibility="Collapsed" x:Name="LoadingBar" IsIndeterminate="True"/>
+            </TextBlock>
+            <ProgressBar x:Name="LoadingBar" IsIndeterminate="True"/>
+        </Grid>
+
+        <ProgressRing x:Name="LoadingRing" IsActive="True" Width="100" Height="100" Visibility="Collapsed"/>
+
+        <Button x:Name="ComicsLocationButton" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,64,75,0" Background="Black" Click="ComicsLocationButton_Click">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="&#xE197;" FontSize="16" FontFamily="{StaticResource SymbolThemeFontFamily}" />
+                <TextBlock Text=" Copy Comics Location to Clipboard" />
+            </StackPanel>
+        </Button>
     </Grid>
 
 </Page>

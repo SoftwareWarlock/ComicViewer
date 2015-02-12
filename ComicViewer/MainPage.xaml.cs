@@ -20,6 +20,9 @@ using Windows.UI.Xaml.Navigation;
 using FileShare;
 using Windows.UI.Popups;
 using SharpCompress.Common;
+using Windows.ApplicationModel.DataTransfer;
+using WinRTXamlToolkit.Extensions;
+using Windows.System;
 
 // The Grouped Items Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=234231
 
@@ -32,7 +35,6 @@ namespace ComicViewer
     {
         public ObservableCollection<ComicTile> ComicTiles { get; set; }
         public ObservableCollection<CollectionView> CollectionViews { get; set; }
-        public ObservableCollection<ComicTile> ButtonTiles { get; set; }
         public ObservableCollection<CollectionTile> CollectionTiles { get; set; }
         private ObservableDictionary defaultViewModel = new ObservableDictionary();
         public ObservableDictionary DefaultViewModel
@@ -45,19 +47,12 @@ namespace ComicViewer
             this.InitializeComponent();
             ComicTiles = new ObservableCollection<ComicTile>();
             CollectionTiles = new ObservableCollection<CollectionTile>();
-            ButtonTiles = new ObservableCollection<ComicTile>();
             CollectionViews = new ObservableCollection<CollectionView>();
-            ButtonTiles.Add(new ComicTile("Open a new comic", "", null));
-            ButtonTiles.Add(new ComicTile("Open a new collection", "", null));
         }
 
-        private void ProggressBarVisible(bool visible)
+        private void LoadingGridVisible(bool visible)
         {
-            LoadingBar.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-        }
-        private void LoadingTextVisible(bool visible)
-        {
-            LoadingText.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            LoadingGrid.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         }
 
 
@@ -119,17 +114,16 @@ namespace ComicViewer
 
         protected async override void OnNavigatedTo(NavigationEventArgs e)
         {
-            ProggressBarVisible(true);
+            LoadingRing.Visibility = Visibility.Visible;
             await CreateComicTiles();
             await CreateCollectionTiles();
             foreach(CollectionTile tile in CollectionTiles)
             {
                 CollectionViews.Add(new CollectionView(tile));
             }
-            defaultViewModel["ButtonTiles"] = ButtonTiles;
             defaultViewModel["ComicTiles"] = ComicTiles;
             defaultViewModel["CollectionViews"] = CollectionViews;
-            ProggressBarVisible(false);
+            LoadingRing.Visibility = Visibility.Collapsed;
         }
 
         public void ItemView_ItemClick(object sender, ItemClickEventArgs e)
@@ -140,82 +134,59 @@ namespace ComicViewer
             this.Frame.Navigate(typeof(ComicPage), item.Folder);
         }
 
-       private async void buttonGridView_ItemClick(object sender, ItemClickEventArgs e)
-        {
-            ComicTile clicked = (ComicTile)e.ClickedItem;
-            if (clicked.Title == "Open a new comic")
-            {
-                MarkedUp.AnalyticClient.SessionEvent("Opened a new comic");
-                this.Frame.Navigate(typeof(ComicPage));
-            }
-            else if (clicked.Title == "Open a new collection")
-            {
-                MarkedUp.AnalyticClient.SessionEvent("Opened a collection");
-                StorageFolder localFolder = Windows.Storage.ApplicationData.Current.LocalFolder;
-                StorageFolder collections = await localFolder.GetFolderAsync("Collections");
-
-                Windows.Storage.Pickers.FolderPicker folderPicker = new Windows.Storage.Pickers.FolderPicker();
-                folderPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary;
-                folderPicker.FileTypeFilter.Add("*");
-                folderPicker.CommitButtonText = "Open";
-
-                StorageFolder chosenFolder = await folderPicker.PickSingleFolderAsync();
-                if (chosenFolder != null)
-                {
-                    ProggressBarVisible(true);
-                    LoadingTextVisible(true);
-                    List<StorageFile> files = await RecursivelySearchForFiles(chosenFolder);
-                    StorageFolder collectionFolder = (StorageFolder)await collections.TryGetItemAsync(chosenFolder.Name);
-                    if (collectionFolder == null)
-                    {
-                        collectionFolder = await collections.CreateFolderAsync(chosenFolder.Name);
-                    }
-                    else
-                    {
-                        ShowWarning("Collection already exist!", "Adding new, nonexisting comics");
-                    }
-
-                    foreach (StorageFile sourceFile in files)
-                    {
-                        StorageFolder destFolder = (StorageFolder)await collectionFolder.TryGetItemAsync(sourceFile.Name);
-                        if (destFolder == null)
-                        {
-                            destFolder = await collectionFolder.CreateFolderAsync(sourceFile.Name);
-                            try
-                            {
-                                DefaultViewModel["LoadingFile"] = sourceFile.Name;
-                                if (sourceFile.FileType.Equals("cbz") || sourceFile.FileType.Equals(".cbz"))
-                                    await FolderZip.UnZipFile(sourceFile, destFolder);
-                                else if (sourceFile.FileType.Equals("cbr") || sourceFile.FileType.Equals(".cbr"))
-                                    await FolderZip.UnRarFile(sourceFile, destFolder);
-                            }
-                            catch (InvalidFormatException exception)
-                            {
-                                ShowWarning("Error opening file:" + sourceFile.Name, "Please restart the app and try again");
-                            }
-                        }
-                        LoadingBar.Value += (1.0 / files.Count()) * 100;
-                    }
-
-                    await CreateCollectionTiles();
-                    CollectionViews.Clear();
-                    foreach (CollectionTile tile in CollectionTiles)
-                    {
-                        CollectionViews.Add(new CollectionView(tile));
-                    }
-                    defaultViewModel["ComicTiles"] = ComicTiles;
-                    defaultViewModel["CollectionViews"] = CollectionViews;
-                    ProggressBarVisible(false);
-                    LoadingTextVisible(false);
-                }
-            }
-        }
        private async Task ShowWarning(String error1, String error2)
        {
            var messageDialog = new MessageDialog(error2, error1);
            messageDialog.Commands.Add(new UICommand("Okay", null));
 
            await messageDialog.ShowAsync();
+       }
+
+       private async void OpenComicCollection(StorageFolder chosenFolder, StorageFolder collections)
+       {
+           LoadingGridVisible(true);
+           List<StorageFile> files = await RecursivelySearchForFiles(chosenFolder);
+           StorageFolder collectionFolder = (StorageFolder)await collections.TryGetItemAsync(chosenFolder.Name);
+           if (collectionFolder == null)
+           {
+               collectionFolder = await collections.CreateFolderAsync(chosenFolder.Name);
+           }
+           else
+           {
+               ShowWarning("Collection already exist!", "Adding new comics");
+           }
+
+           foreach (StorageFile sourceFile in files)
+           {
+               StorageFolder destFolder = (StorageFolder)await collectionFolder.TryGetItemAsync(sourceFile.Name);
+               if (destFolder == null)
+               {
+                   destFolder = await collectionFolder.CreateFolderAsync(sourceFile.Name);
+                   try
+                   {
+                       DefaultViewModel["LoadingFile"] = sourceFile.Name;
+                       if (sourceFile.FileType.Equals("cbz") || sourceFile.FileType.Equals(".cbz"))
+                           await FolderZip.UnZipFile(sourceFile, destFolder);
+                       else if (sourceFile.FileType.Equals("cbr") || sourceFile.FileType.Equals(".cbr"))
+                           await FolderZip.UnRarFile(sourceFile, destFolder);
+                   }
+                   catch (InvalidFormatException exception)
+                   {
+                       ShowWarning("Error opening file:" + sourceFile.Name, "Please try again");
+                   }
+               }
+               LoadingBar.Value += (1.0 / files.Count()) * 100;
+           }
+
+           await CreateCollectionTiles();
+           CollectionViews.Clear();
+           foreach (CollectionTile tile in CollectionTiles)
+           {
+               CollectionViews.Add(new CollectionView(tile));
+           }
+           defaultViewModel["ComicTiles"] = ComicTiles;
+           defaultViewModel["CollectionViews"] = CollectionViews;
+           LoadingGridVisible(false);
        }
        private async Task<List<StorageFile>> RecursivelySearchForFiles(StorageFolder destFolder)
        {
@@ -235,6 +206,97 @@ namespace ComicViewer
                         filesList.Add(file);
            }
            return filesList;
+       }
+
+       private void ComicsLocationButton_Click(object sender, RoutedEventArgs e)
+       {
+           StorageFolder localFolder = Windows.Storage.ApplicationData.Current.LocalFolder;
+           DataPackage package = new DataPackage();
+           package.RequestedOperation = DataPackageOperation.Copy;
+           package.SetText(localFolder.Path.ToString());
+           Clipboard.SetContent(package);
+       }
+
+       private void OpenComicsButton_Click(object sender, RoutedEventArgs e)
+       {
+           MarkedUp.AnalyticClient.SessionEvent("Opened a new comic");
+           this.Frame.Navigate(typeof(ComicPage));
+       }
+
+       private async void OpenCollectionButton_Click(object sender, RoutedEventArgs e)
+       {
+           MarkedUp.AnalyticClient.SessionEvent("Opened a collection");
+           StorageFolder localFolder = Windows.Storage.ApplicationData.Current.LocalFolder;
+           StorageFolder collections = await localFolder.GetFolderAsync("Collections");
+
+           Windows.Storage.Pickers.FolderPicker folderPicker = new Windows.Storage.Pickers.FolderPicker();
+           folderPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary;
+           folderPicker.FileTypeFilter.Add("*");
+           folderPicker.CommitButtonText = "Open";
+
+           StorageFolder chosenFolder = await folderPicker.PickSingleFolderAsync();
+           if (chosenFolder != null)
+           {
+               OpenComicCollection(chosenFolder, collections);
+           }
+       }
+
+       private void collectionsGridView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+       {
+           GridView collectionGridView = VisualTreeHelperExtensions.GetFirstDescendantOfType<GridView>(CollectionsHubSection);
+           GridView recentlyOpenedGridView = VisualTreeHelperExtensions.GetFirstDescendantOfType<GridView>(RecentlyOpenedHubSection);
+           BottomAppBar.IsOpen = collectionGridView.SelectedItems.Count > 0 || recentlyOpenedGridView.SelectedItems.Count > 0;
+       }
+
+       private async void DeleteAppBarButton_Click(object sender, RoutedEventArgs e)
+       {
+           LoadingRing.Visibility = Visibility.Visible;
+           GridView collectionGridView = VisualTreeHelperExtensions.GetFirstDescendantOfType<GridView>(CollectionsHubSection);
+
+           foreach (CollectionView collectionView in collectionGridView.SelectedItems)
+           {
+               CollectionTile collectionTile = collectionView.Tile;
+               CollectionTiles.Remove(collectionTile);
+               CollectionViews.Remove(collectionView);
+               StorageFolder localFolder = Windows.Storage.ApplicationData.Current.LocalFolder;
+               StorageFolder collectionsFolder = (StorageFolder)await localFolder.TryGetItemAsync("Collections");
+               if(null != collectionsFolder)
+               {
+                   StorageFolder collectionFolder = await collectionsFolder.TryGetItemAsync(collectionTile.Title) as StorageFolder;
+                   await collectionFolder.DeleteAsync();
+               }
+           }
+
+           GridView recentlyOpenedGridView = VisualTreeHelperExtensions.GetFirstDescendantOfType<GridView>(RecentlyOpenedHubSection);
+
+           foreach (ComicTile comicTile in recentlyOpenedGridView.SelectedItems)
+           {
+               ComicTiles.Remove(comicTile);
+               await comicTile.Folder.DeleteAsync();
+           }
+           LoadingRing.Visibility = Visibility.Collapsed;
+       }
+
+       private void ClearAppBarButton_Click(object sender, RoutedEventArgs e)
+       {
+           GridView gridView = VisualTreeHelperExtensions.GetFirstDescendantOfType<GridView>(CollectionsHubSection);
+           gridView.SelectedItem = null;
+
+           GridView recentlyOpenedGridView = VisualTreeHelperExtensions.GetFirstDescendantOfType<GridView>(RecentlyOpenedHubSection);
+           recentlyOpenedGridView.SelectedItem = null;
+       }
+
+       protected override void OnTapped(TappedRoutedEventArgs e)
+       {
+           base.OnTapped(e);
+           BottomAppBar.IsOpen = false;
+       }
+
+       protected override void OnKeyUp(KeyRoutedEventArgs e)
+       {
+           base.OnKeyUp(e);
+           if (e.Key == VirtualKey.Escape)
+               BottomAppBar.IsOpen = false;
        }
     }
 }
